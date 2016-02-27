@@ -1,61 +1,146 @@
+<div><input id="pac-input" type="text" class="controls" placeholder="Enter a location" autocomplete="off" ></div>
+<div id="map" style="width:800px;height: 550px;"></div>
 
-<form name="siteform" method="post">
-    <table>
-    <% selectedDates.forEach(function(selectedDate){%>
-    <tr id="<%- selectedDate.id %>">
-        <td>Секция № <%- selectedDate.id %></td>
-        <td>
-    <select  name="year['<%- selectedDate.id %>']">
-        <% for(var i = 0,year = new Date().getFullYear() -5; i < 10; i++){%>
 
-        <option  value="<%- year + i%>" <%- selectedDate.year == year + i ? 'selected' : ''%> ><%- year + i%></option>
-        <% } %>
-    </select>
-    <select name="mounth['<%- selectedDate.id %>']">
-        <option <% if(selectedDate.mounth ==3){%>selected<% } %> value="3">I</option>
-        <option <% if(selectedDate.mounth ==6){%>selected<% } %> value="6">II</option>
-        <option <% if(selectedDate.mounth ==9){%>selected<% } %> value="9">III</option>
-        <option <% if(selectedDate.mounth ==12){%>selected<% } %> value="12">IV</option>
-    </select>
-        </td>
-    </tr>
-    <% }) %>
-        <tr>
-            <td><input type="submit"></td>
-        </tr>
-    </table>
-</form>
-<button id="createSelect" onclick="createSelect(); return false;">Создать выбор</button>
 
+<script src="http://maps.googleapis.com/maps/api/js?sensor=false" type="text/javascript"></script>
+<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
+<!--<script src="https://api-maps.yandex.ru/2.0-stable/?load=package.full&lang=ru-RU&mode=debug&onload=initMap" type="text/javascript"> </script>-->
 <script>
-    'use strict';
-    function insertAfter(referenceNode, newNode) {
-        referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+    function getDistens(point1, point2){
+        var dist = 111.2 * Math.acos(Math.sin(point1.lat)*Math.sin(point2.lat) + Math.cos(point1.lat) * Math.cos(point2.lat) * Math.cos(point2.lng-point1.lng));
+        alert('' +dist);
     }
-    var number = <%= selectedDates[selectedDates.length - 1].id %>;
+    var map,
+            markers = [];
+    function initialize() {
+        var myMarker = new google.maps.LatLng(49.2331, 28.4682)
+        var Options = {
+            center: myMarker,
+            zoom: 15,
+            mapTypeId: google.maps.MapTypeId.ROADMAP
+        };
+        map = new google.maps.Map(document.getElementById("map"), Options);
+        var input = document.getElementById('pac-input');
 
-function createSelect(){
-    var lastTr = document.getElementById(number)
-    var newTr = document.createElement("tr");
-    newTr.setAttribute('id', number + 1);
-    var selects = '<td>Секция № ' + (number + 1) + '</td><td><select  name="year[\'' + (number + 1) + '\']">';
-    for(var i = 0,year = new Date().getFullYear() -5; i < 10; i++){
-        selects += '<option value="' + (year + i) + '">' + (year + i) + '</option>'
+        var autocomplete = new google.maps.places.Autocomplete(input);
+        autocomplete.bindTo('bounds', map);
+        var infowindow = new google.maps.InfoWindow();
+        //map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+        var marker = new google.maps.Marker({
+            map: map
+        });
+        google.maps.event.addListener(marker, 'click', function () {
+            infowindow.open(map, marker);
+        });
+        service = new google.maps.places.PlacesService(map);
+        var geocoder  = new google.maps.Geocoder();
+        var point1 = {};
+        var point2 = {};
+        //
+        geocoder.geocode( { 'address':'винница, ул. соборная, укеукекуе'}, function(results, status) {
+            if (status == google.maps.GeocoderStatus.OK) {
+                console.log(results);
+                point1.lat = parseFloat(results[0].geometry.location.lat());
+                point1.lng = parseFloat(results[0].geometry.location.lng());
+                console.log(point1)
+                var marker = new google.maps.Marker({
+                            position: results[0].geometry.location,
+                            map: map
+                });
+            } else {
+                alert('Geocode was not successful for the following reason: ' + status);
+            }
+        });
+        geocoder.geocode({'address':'Винницкая область, казатин'}, function(results, status) {
+            if (status == google.maps.GeocoderStatus.OK) {
+
+                point2.lat = parseFloat(results[0].geometry.location.lat());
+                point2.lng = parseFloat(results[0].geometry.location.lng());
+                console.log(point2)
+                var marker = new google.maps.Marker({
+                    position: results[0].geometry.location,
+                    map: map
+                });
+                getDistens(point1,point2);
+            } else {
+                alert('Geocode was not successful for the following reason: ' + status);
+            }
+        });
+
+        google.maps.event.addListener(autocomplete, 'place_changed', function() {
+            infowindow.close();
+            var place = autocomplete.getPlace();
+            if (!place.geometry) {
+                return;
+            }
+            console.log(place)
+            if (place.geometry.viewport) {
+
+                map.fitBounds(place.geometry.viewport);
+            } else {
+                map.setCenter(place.geometry.location);
+            }
+
+            // Set the position of the marker using the place ID and location.
+            marker.setPlace(/** @type {!google.maps.Place} */ ({
+                placeId: place.place_id,
+                location: place.geometry.location
+            }));
+            //marker.setVisible();
+            infowindow.setContent('<p>' + place.place_id + '</p>');
+            infowindow.open(map,marker);
+        });
     }
-    selects += '</select> <select  name="mounth[\'' + (number + 1) + '\']">';
-    selects += '<option value="3">I</option>';
-    selects += '<option value="6">II</option>';
-    selects += '<option value="9">III</option>';
-    selects += '<option value="12">IV</option>';
-    selects += '</select></td>';
-    newTr.innerHTML = selects;
-    insertAfter(lastTr, newTr);
-    number++;
-}
 
 
-
-
-
-
+//        var infowindow = new google.maps.InfoWindow();
+//        marker.addListener('drag', function(event){
+//            infowindow.close();
+//        })
+//        marker.addListener('dragend', function(event) {
+//            //marker.setTitle(marker.getPlace());
+//            //console.log(event);
+//            var geocoder  = new google.maps.Geocoder();             // create a geocoder object
+//            var location  = event.latLng//new google.maps.LatLng(position.coords.latitude, position.coords.longitude);    // turn coordinates into an object
+//            geocoder.geocode({'latLng': location}, function (results, status) {
+//                if (status == google.maps.GeocoderStatus.OK) {           // if geocode success
+//                    var add = results[0].formatted_address;         // if address found, pass to processing function
+//                    console.log(add);
+//                    infowindow.setContent("<p>" + add + "</p><p>"+event.latLng.toString()+"</p>");
+//                    infowindow.open(map,marker);
+//                }
+//            });
+//
+//            service.nearbySearch({location: {lat: event.latLng.lat(), lng: event.latLng.lng()}, radius: 400}, function (results, status) {
+//
+//                if (status == google.maps.places.PlacesServiceStatus.OK) {
+//                    for (var i = 0; i < results.length; i++) {
+//                        var place = results[i];
+//                        console.log(place);
+//                        addMarker(results[i], infowindow);
+//                    }
+//                }
+//            });
+//        });
+//        map.addListener('click', function(event) {
+//            addMarker(event.latLng);
+//        });
+//    }
+//
+//    function addMarker(place,infowindow) {
+//        var marker = new google.maps.Marker({
+//            map: map,
+//            position: place.geometry.location,
+//
+//            icon: {
+//                url: 'http://maps.gstatic.com/mapfiles/circle.png',
+//                anchor: new google.maps.Point(10, 10),
+//                scaledSize: new google.maps.Size(10, 17)
+//            }
+//        });
+//        infowindow.setContent('<img src="' + place.icon + '">')
+//        infowindow.open(map,marker)
+//    }
+    google.maps.event.addDomListener(window, 'load', initialize);
 </script>
